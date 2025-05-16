@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <title>ChatBot Q&A</title>
+    <link rel="icon" type="image/x-icon" href="../static/chatbox.ico">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .chat-container {
+            background-color: white;
+            width: 400px;
+            max-width: 90%;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            background-color: #007bff;
+            color: white;
+            padding: 15px;
+            font-size: 20px;
+            text-align: center;
+        }
+
+        #chatBox {
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            flex-grow: 1;
+            background-color: #fafafa;
+        }
+
+        .bot {
+            color: #28a745;
+            margin: 5px 0;
+        }
+
+        .user {
+            color: #007bff;
+            margin: 5px 0;
+            text-align: right;
+        }
+
+        .input-area {
+            display: flex;
+            border-top: 1px solid #ddd;
+        }
+
+        #userInput {
+            flex-grow: 1;
+            border: none;
+            padding: 10px;
+            font-size: 16px;
+            outline: none;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="chat-container">
+        <div class="chat-header">🤖 ChatBot Q&A</div>
+        <div id="chatBox">
+            {% for message in chat_history %}
+            <div class="user"><strong>Bạn:</strong> {{ message.user }}</div>
+            <div class="bot"><strong>Bot:</strong> {{ message.bot | safe }}</div>
+            {% endfor %}
+        </div>
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="Nhập tin nhắn..." onkeypress="handleKey(event)">
+            <button onclick="sendMessage()">Gửi</button>
+        </div>
+    </div>
+
+    <script>
+        async function sendMessage() {
+            const inputField = document.getElementById("userInput");
+            const message = inputField.value;
+            if (!message.trim()) return;
+
+            const chatBox = document.getElementById("chatBox");
+            chatBox.innerHTML += `<div class="user"><strong>Bạn:</strong> ${message}</div>`;
+
+            const response = await fetch("/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message })
+            });
+            const data = await response.json();
+
+            chatBox.innerHTML += `<div class="bot"><strong>Bot:</strong> ${data.response}</div>`;
+            inputField.value = "";
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function handleKey(event) {
+            if (event.key === "Enter") {
+                sendMessage();
+            }
+        }
+
+        // Cuộn xuống cuối chatBox khi tải trang
+        window.onload = function () {
+            const chatBox = document.getElementById("chatBox");
+            chatBox.scrollTop = chatBox.scrollHeight;
+        };
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Build Predict Model</title>
+    <link rel="icon" type="image/x-icon" href="../static/chatbox.ico">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h2,
+        h3 {
+            color: #333;
+        }
+
+        .section {
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 5px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        label {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select,
+        input[type="file"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        button:hover:not(:disabled) {
+            background: #0056b3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .error {
+            color: red;
+            margin: 10px 0;
+        }
+
+        .data-table {
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .checkbox-group {
+            margin: 10px 0;
+        }
+
+        .checkbox-group label {
+            font-weight: normal;
+            margin-right: 20px;
+        }
+
+        .result {
+            margin: 20px 0;
+        }
+
+        .result p {
+            margin: 5px 0;
+        }
+
+        .metrics-table,
+        .confusion-matrix {
+            margin-top: 20px;
+        }
+
+        .metrics-table img,
+        .confusion-matrix img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .history {
+            margin-top: 20px;
+        }
+
+        .history ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .history li {
+            margin: 5px 0;
+        }
+
+        a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+
+        .modal-content {
+            margin: auto;
+            display: block;
+            max-width: 90%;
+            max-height: 90%;
+        }
+
+        .modal-content img {
+            width: 100%;
+            height: auto;
+        }
+
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #fff;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .dataset-info {
+            margin: 10px 0;
+            font-weight: bold;
+        }
+    </style>
+    <script>
+        function disableButton(buttonId) {
+            document.getElementById(buttonId).disabled = true;
+        }
+
+        function enableAllButtons() {
+            document.querySelectorAll('button').forEach(button => {
+                button.disabled = false;
+            });
+        }
+
+        function validateTrainForm() {
+            const trainRatio = document.querySelector('select[name="train_ratio"]').value;
+            const vectorization = document.querySelector('input[name="vectorization"]:checked')?.value;
+            const distributional = document.querySelector('input[name="distributional"]:checked')?.value;
+            const modelType = document.querySelector('input[name="model_type"]:checked')?.value;
+            if (!trainRatio || isNaN(parseFloat(trainRatio)) || parseFloat(trainRatio) <= 0 || parseFloat(trainRatio) >= 1) {
+                alert("Please select a valid Train/Test Ratio (e.g., 0.8).");
+                return false;
+            }
+            if (!vectorization && !distributional) {
+                alert("Please select a Vectorization or Distributional Representation method.");
+                return false;
+            }
+            if (!modelType) {
+                alert("Please select a Model.");
+                return false;
+            }
+            return true;
+        }
+
+        window.onload = function () {
+            const action = "{{ action }}";
+            if (action === "load" || action === "crawl") {
+                disableButton("load-btn");
+                disableButton("crawl-btn");
+            } else if (action === "select_columns") {
+                disableButton("load-btn");
+                disableButton("crawl-btn");
+                disableButton("select-columns-btn");
+            } else if (action === "augment") {
+                disableButton("load-btn");
+                disableButton("crawl-btn");
+                disableButton("select-columns-btn");
+                disableButton("augment-btn");
+            } else if (action === "preprocess") {
+                disableButton("load-btn");
+                disableButton("crawl-btn");
+                disableButton("select-columns-btn");
+                disableButton("augment-btn");
+                disableButton("preprocess-btn");
+            } else if (action === "train") {
+                disableButton("load-btn");
+                disableButton("crawl-btn");
+                disableButton("select-columns-btn");
+                disableButton("augment-btn");
+                disableButton("preprocess-btn");
+                disableButton("train-btn");
+            } else if (action === "predict") {
+                disableButton("load-btn");
+                disableButton("crawl-btn");
+                disableButton("select-columns-btn");
+                disableButton("augment-btn");
+                disableButton("preprocess-btn");
+                disableButton("train-btn");
+                disableButton("predict-btn");
+            }
+
+            const textAug = JSON.parse('{{ text_augmentation|tojson|safe }}');
+            const labelAug = JSON.parse('{{ label_augmentation|tojson|safe }}');
+            const textPre = JSON.parse('{{ text_preprocessing|tojson|safe }}');
+            const modelType = "{{ model_type|safe }}";
+            const trainRatio = "{{ train_ratio|safe }}";
+            const vectorization = "{{ vectorization|safe }}";
+            const distributional = "{{ distributional|safe }}";
+
+            textAug.forEach(val => {
+                const input = document.querySelector(`input[name="text_augmentation"][value="${val}"]`);
+                if (input) input.checked = true;
+            });
+            labelAug.forEach(val => {
+                const input = document.querySelector(`input[name="label_augmentation"][value="${val}"]`);
+                if (input) input.checked = true;
+            });
+            textPre.forEach(val => {
+                const input = document.querySelector(`input[name="text_preprocessing"][value="${val}"]`);
+                if (input) input.checked = true;
+            });
+            if (modelType) {
+                const input = document.querySelector(`input[name="model_type"][value="${modelType}"]`);
+                if (input) input.checked = true;
+            }
+            if (trainRatio) {
+                const select = document.querySelector(`select[name="train_ratio"]`);
+                if (select) select.value = trainRatio;
+            }
+            if (vectorization) {
+                const input = document.querySelector(`input[name="vectorization"][value="${vectorization}"]`);
+                if (input) input.checked = true;
+            }
+            if (distributional) {
+                const input = document.querySelector(`input[name="distributional"][value="${distributional}"]`);
+                if (input) input.checked = true;
+            }
+
+            const isLowPerformance = window.navigator.hardwareConcurrency < 4;
+            if (!isLowPerformance) {
+                const images = document.querySelectorAll('.metrics-table img, .confusion-matrix img');
+                const modal = document.createElement('div');
+                modal.className = 'modal';
+                const modalContent = document.createElement('div');
+                modalContent.className = 'modal-content';
+                const modalImg = document.createElement('img');
+                modalContent.appendChild(modalImg);
+                const closeBtn = document.createElement('span');
+                closeBtn.className = 'close';
+                closeBtn.innerHTML = '×';
+                modal.appendChild(closeBtn);
+                modal.appendChild(modalContent);
+                document.body.appendChild(modal);
+
+                images.forEach(img => {
+                    img.onclick = function () {
+                        modal.style.display = 'block';
+                        modalImg.src = this.src;
+                    };
+                });
+
+                closeBtn.onclick = function () {
+                    modal.style.display = 'none';
+                };
+
+                modal.onclick = function (event) {
+                    if (event.target === modal) {
+                        modal.style.display = 'none';
+                    }
+                };
+            }
+
+            const trainForm = document.querySelector('form[action="/predict-model"] button[name="train"]').closest('form');
+            if (trainForm) {
+                trainForm.onsubmit = validateTrainForm;
+            }
+        };
+    </script>
+</head>
+
+<body>
+    <div class="container">
+        <h2>Build Predict Model</h2>
+        <form method="POST" action="/predict-model">
+            <input type="hidden" name="reset">
+            <button type="submit">Reset</button>
+        </form>
+
+        <div class="section">
+            <h3>1. Select Data</h3>
+            <form method="POST" action="/predict-model" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="file">Upload File:</label>
+                    <input type="file" id="file" name="file">
+                    <select name="file_type">
+                        <option value="csv">CSV</option>
+                        <option value="tsv">TSV</option>
+                        <option value="xlsx">XLSX</option>
+                        <option value="json">JSON</option>
+                        <option value="txt">TXT</option>
+                    </select>
+                    <label><input type="checkbox" name="is_zip" id="is_zip"> ZIP File</label>
+                    <button type="submit" id="load-btn">Load File</button>
+                </div>
+            </form>
+            <form method="POST" action="/predict-model">
+                <div class="form-group">
+                    <label for="crawl_url">Crawl Data from URL:</label>
+                    <input type="text" id="crawl_url" name="crawl_url"
+                        value="{{ default_crawl_url|default('http://quotes.toscrape.com') }}" placeholder="Enter URL">
+                    <button type="submit" id="crawl-btn">Crawl Data</button>
+                </div>
+            </form>
+            {% if data_preview %}
+            <div class="data-table">
+                <table>
+                    <thead>
+                        <tr>
+                            {% for col in columns %}
+                            <th>{{ col }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in data_preview %}
+                        <tr>
+                            {% for col in columns %}
+                            <td>{{ row[col]|default('N/A', true) }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if data_rows > 0 and data_cols > 0 %}
+            <div class="dataset-info">
+                Dataset: {{ data_rows }} rows, {{ data_cols }} columns
+            </div>
+            {% else %}
+            <div class="dataset-info">
+                Dataset: No data loaded
+            </div>
+            {% endif %}
+            <form method="POST" action="/predict-model">
+                <div class="form-group">
+                    <label for="text_column">Text Column:</label>
+                    <select id="text_column" name="text_column">
+                        <option value="">Select column</option>
+                        {% for col in columns %}
+                        <option value="{{ col }}" {% if col==text_column %}selected{% endif %}>{{ col }}</option>
+                        {% endfor %}
+                    </select>
+                    <label for="label_column">Label Column:</label>
+                    <select id="label_column" name="label_column">
+                        <option value="">Select column</option>
+                        {% for col in columns %}
+                        <option value="{{ col }}" {% if col==label_column %}selected{% endif %}>{{ col }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" name="select_columns" id="select-columns-btn">Select Columns</button>
+                </div>
+            </form>
+            {% endif %}
+        </div>
+
+        <div class="section">
+            <h3>2. Data Augmentation</h3>
+            <form method="POST" action="/predict-model">
+                <div class="form-group">
+                    <label for="augment_rows">Number of Rows to Augment:</label>
+                    <input type="number" id="augment_rows" name="augment_rows" min="0"
+                        value="{{ data_rows if data_rows else 0 }}" placeholder="Number of rows (default: all)">
+                    <label><input type="checkbox" name="augment_random" id="augment_random" value="random" {%
+                            if 'random' in augment_random %}checked{% endif %}> Random Augmentation</label>
+                </div>
+                <div class="checkbox-group">
+                    <p><b>Text Augmentation:</b></p>
+                    <label><input type="checkbox" name="text_augmentation" value="synonym"> Synonym Replacement</label>
+                    <label><input type="checkbox" name="text_augmentation" value="random_insert"> Random Word
+                        Insertion</label>
+                    <label><input type="checkbox" name="text_augmentation" value="back_translation"> Back
+                        Translation</label>
+                    <label><input type="checkbox" name="text_augmentation" value="word_dropout"> Word Dropout</label>
+                    <label><input type="checkbox" name="text_augmentation" value="entity_replacement"> Entity
+                        Replacement</label>
+                    <label><input type="checkbox" name="text_augmentation" value="random_word_swap"> Random Word
+                        Swap</label>
+                    <label><input type="checkbox" name="text_augmentation" value="random_word_deletion"> Random Word
+                        Deletion</label>
+                </div>
+                <div class="checkbox-group">
+                    <p><b>Label Augmentation:</b></p>
+                    <label><input type="checkbox" name="label_augmentation" value="balance"> Balance Labels
+                        (Oversampling)</label>
+                </div>
+                <button type="submit" name="augment" id="augment-btn">Apply Augmentation</button>
+                {% if augment_preview %}
+                <div class="data-table">
+                    <h4>Augmented Data Preview</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                {% for col in columns %}
+                                <th>{{ col }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in augment_preview %}
+                            <tr>
+                                {% for col in columns %}
+                                <td>{{ row[col]|default('N/A', true) }}</td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+
+        <div class="section">
+            <h3>3. Text Preprocessing</h3>
+            <form method="POST" action="/predict-model">
+                <div class="checkbox-group">
+                    <p><b>Text Preprocessing:</b></p>
+                    <label><input type="checkbox" name="text_preprocessing" value="remove_special"> Remove Special
+                        Characters</label>
+                    <label><input type="checkbox" name="text_preprocessing" value="remove_stopwords"> Remove Stop
+                        Words</label>
+                    <label><input type="checkbox" name="text_preprocessing" value="lemmatize"> Lemmatization</label>
+                    <label><input type="checkbox" name="text_preprocessing" value="remove_punctuation"> Remove
+                        Punctuation</label>
+                    <label><input type="checkbox" name="text_preprocessing" value="stemming"> Stemming</label>
+                    <label><input type="checkbox" name="text_preprocessing" value="pos_tagging"> POS Tagging</label>
+                    <label><input type="checkbox" name="text_preprocessing" value="expand_contraction"> Expand
+                        Contraction</label>
+                    <label><input type="checkbox" name="text_preprocessing" value="spellcheck"> Spellcheck</label>
+                    <label><input type="checkbox" name="text_preprocessing" value="ner"> NER</label>
+                </div>
+                <button type="submit" name="preprocess" id="preprocess-btn">Apply Preprocessing</button>
+            </form>
+            {% if preprocess_preview %}
+            <div class="data-table">
+                <h4>Preprocessed Data Preview</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            {% for col in columns %}
+                            <th>{{ col }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in preprocess_preview %}
+                        <tr>
+                            {% for col in columns %}
+                            <td>{{ row[col]|default('N/A', true) }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="section">
+            <h3>4. Text Classification</h3>
+            <form method="POST" action="/predict-model">
+                <div class="checkbox-group">
+                    <p><b>Vectorization Method (select one):</b></p>
+                    <label><input type="radio" name="vectorization" value="tfidf" checked> TF-IDF</label>
+                    <label><input type="radio" name="vectorization" value="bag_of_words"> Bag of Words</label>
+                    <label><input type="radio" name="vectorization" value="bag_of_ngrams"> Bag of N-grams</label>
+                    <label><input type="radio" name="vectorization" value="one_hot"> One-Hot Encoding</label>
+                </div>
+                <div class="checkbox-group">
+                    <p><b>Distributional Representation (select one):</b></p>
+                    <label><input type="radio" name="distributional" value="word2vec"> Word2Vec</label>
+                    <label><input type="radio" name="distributional" value="glove"> GloVe</label>
+                    <label><input type="radio" name="distributional" value="distilbert"> DistilBERT</label>
+                    <label><input type="radio" name="distributional" value="bert-tiny"> BERT-Tiny</label>
+                    <label><input type="radio" name="distributional" value="roberta"> RoBERTa</label>
+                </div>
+                <div class="checkbox-group">
+                    <p><b>Model:</b></p>
+                    <label><input type="radio" name="model_type" value="logistic" checked> Logistic Regression</label>
+                    <label><input type="radio" name="model_type" value="random_forest"> Random Forest</label>
+                    <label><input type="radio" name="model_type" value="naive_bayes"> Naive Bayes</label>
+                    <label><input type="radio" name="model_type" value="svm"> SVM</label>
+                    <label><input type="radio" name="model_type" value="knn"> KNN</label>
+                </div>
+                <div class="form-group">
+                    <label for="train_ratio">Train/Test Ratio:</label>
+                    <select id="train_ratio" name="train_ratio">
+                        <option value="0.8" {% if train_ratio=='0.8' %}selected{% endif %}>80/20</option>
+                        <option value="0.7" {% if train_ratio=='0.7' %}selected{% endif %}>70/30</option>
+                        <option value="0.6" {% if train_ratio=='0.6' %}selected{% endif %}>60/40</option>
+                    </select>
+                </div>
+                <button type="submit" name="train" id="train-btn">Train Model</button>
+            </form>
+            {% if report_history %}
+            <div class="metrics-table">
+                <h3>Latest Evaluation Results</h3>
+                <h4>Metrics Table</h4>
+                <img src="{{ url_for('static', filename=report_history[-1]['metrics_file']) }}" alt="Metrics Table"
+                    loading="lazy">
+                <a href="{{ url_for('static', filename=report_history[-1]['metrics_file']) }}" download>
+                    <button>Download Metrics Table</button>
+                </a>
+                <h4>Confusion Matrix</h4>
+                <img src="{{ url_for('static', filename=report_history[-1]['cm_file']) }}" alt="Confusion Matrix"
+                    loading="lazy">
+                <a href="{{ url_for('static', filename=report_history[-1]['cm_file']) }}" download>
+                    <button>Download Confusion Matrix</button>
+                </a>
+            </div>
+            <div class="history">
+                <h3>Previous Evaluations</h3>
+                <ul>
+                    {% for report in report_history[:-1] %}
+                    <li>
+                        <a href="{{ url_for('static', filename=report['metrics_file']) }}">Metrics Table ({{
+                            report['timestamp'] }})</a> |
+                        <a href="{{ url_for('static', filename=report['cm_file']) }}">Confusion Matrix</a> |
+                        <a href="{{ url_for('static', filename=report['metrics_file']) }}" download>Download Metrics</a>
+                        |
+                        <a href="{{ url_for('static', filename=report['cm_file']) }}" download>Download Matrix</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="section">
+            <h3>5. Predict Label</h3>
+            <p><b>Possible Labels:</b> {{ labels|join(', ') }}</p>
+            <form method="POST" action="/predict-model">
+                <div class="form-group">
+                    <label for="question">Input Text:</label>
+                    <input type="text" id="question" name="question" value="{{ user_input if user_input else '' }}"
+                        placeholder="Type your text here...">
+                    <button type="submit" name="predict" id="predict-btn">Predict</button>
+                </div>
+            </form>
+            {% if predicted_label %}
+            <div class="result">
+                <h4>Prediction Result</h4>
+                <p><b>Input Text:</b> {{ user_input }}</p>
+                <p><b>Predicted Label:</b> {{ predicted_label }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if error %}
+        <p class="error">{{ error }}</p>
+        {% endif %}
+
+        <p><a href="/">Back to Chatbot</a></p>
+    </div>
+</body>
+
+</html>

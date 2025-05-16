@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Book Recommendation System</title>
+    <link rel="icon" type="image/x-icon" href="../static/chatbox.ico">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            color: #28a745;
+            /* Màu xanh lá từ index2.html cũ */
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        input[type="number"],
+        select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .error {
+            color: red;
+            margin: 10px 0;
+        }
+
+        .book-list {
+            margin-top: 20px;
+        }
+
+        .book-item {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .book-item img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            margin-right: 15px;
+            border-radius: 5px;
+        }
+
+        .book-item div {
+            flex: 1;
+        }
+
+        a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>Book Recommendation System</h2>
+        <p>Enter a User-ID and select the number of books to recommend.</p>
+        <p><b>Note:</b> User-ID must be from active users (e.g., try 277427, 278418, 11676, 16795, 23768). Contact admin
+            for valid IDs.</p>
+
+        <form method="POST">
+            <div class="form-group">
+                <label for="user_id">User-ID:</label>
+                <input type="number" id="user_id" name="user_id" value="{{ user_id if user_id else '' }}" required>
+                <label for="num_books">Number of Books:</label>
+                <select id="num_books" name="num_books">
+                    <option value="5" {% if num_books==5 %}selected{% endif %}>5</option>
+                    <option value="10" {% if num_books==10 %}selected{% endif %}>10</option>
+                    <option value="15" {% if num_books==15 %}selected{% endif %}>15</option>
+                    <option value="20" {% if num_books==20 %}selected{% endif %}>20</option>
+                </select>
+                <button type="submit">Get Recommendations</button>
+            </div>
+        </form>
+
+        {% if error %}
+        <p class="error">{{ error }}</p>
+        {% endif %}
+
+        {% if recommended_books %}
+        <div class="book-list">
+            <h3>Recommended Books</h3>
+            {% for book in recommended_books %}
+            <div class="book-item">
+                <img src="{{ book['Image-URL'] }}" alt="Book Image">
+                <div>
+                    <p><b>Title:</b> {{ book['Book-Title'] }}</p>
+                    <p><b>BookID:</b> {{ book['BookID'] }}</p>
+                    <p><b>Rating:</b> {{ book['Rating']|round(2) }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <p><a href="/">Back to Chatbot</a></p>
+    </div>
+</body>
+
+</html>
